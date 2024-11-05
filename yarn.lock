@@ -2559,6 +2559,11 @@ react-is@^16.13.1:
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-16.13.1.tgz#789729a4dc36de2999dc156dd6c1d9c18cea56a4"
   integrity sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==
 
+react-terminal-ui@^1.3.0:
+  version "1.3.0"
+  resolved "https://registry.yarnpkg.com/react-terminal-ui/-/react-terminal-ui-1.3.0.tgz#aaeb666d9e8e37753bf67b6aab0b17e32521573c"
+  integrity sha512-UhCDuYmvBFicduM3QxF5EQrI6ACt4coNt6bMgxX9BEr/v8NRFnYlwuPXtN4a5Q5yE8F090zsP9zIKZzZrxglZg==
+
 react@19.0.0-rc-02c0e824-20241028:
   version "19.0.0-rc-02c0e824-20241028"
   resolved "https://registry.yarnpkg.com/react/-/react-19.0.0-rc-02c0e824-20241028.tgz#d0f92b734b245471359fec4be89b3f26e23f3197"

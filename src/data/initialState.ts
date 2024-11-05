@@ -1,4 +1,4 @@
-import { BrewPackage, FileSystem } from '@/types';
+import { BrewPackage, FileSystem } from '@/types/index';
 
 export const initialBrewPackages: BrewPackage[] = [
   {
@@ -21,17 +21,8 @@ export const initialBrewPackages: BrewPackage[] = [
   }
 ];
 
-export const initialFileSystem: FileSystem[] = [
-  {
-    name: 'Documents',
-    type: 'directory',
-    children: [
-      { name: 'notes.txt', type: 'file', content: '메모입니다.' }
-    ]
-  },
-  {
-    name: 'Downloads',
-    type: 'directory',
-    children: []
-  }
-]; 
+export const initialFileSystem: FileSystem = {
+  name: 'root',
+  type: 'directory',
+  children: {}
+}; 

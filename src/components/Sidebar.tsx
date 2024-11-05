@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useRef, HTMLAttributes, useState } from 'react';
-import { FileType } from '@/types';
+import { FileType } from '@/types/index';
 import { FolderPlusIcon, DocumentPlusIcon } from '@heroicons/react/24/outline';
 
 declare module 'react' {

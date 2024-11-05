@@ -1,4 +1,4 @@
-import { FileSystem } from '@/types';
+import { FileSystem } from '@/types/index';
 
 export const createFile = (fileName: string): string => {
   return `파일 생성됨: ${fileName}`;
@@ -16,11 +16,15 @@ export const generateLsOutput = (
   if (!files) return '';
   
   return files
-    .filter(file => showHidden || !file.name.startsWith('.'))
+    .filter((file: FileSystem) => showHidden || !file.name.startsWith('.'))
     .map(file => {
       if (showDetails) {
-        const type = file.type === 'directory' ? 'd' : '-';
-        return `${type}rw-r--r-- ${file.name}`;
+        const permissions = file.permissions || (file.type === 'directory' ? 'drwxr-xr-x' : '-rw-r--r--');
+        const owner = file.owner || 'user';
+        const group = file.group || 'user';
+        const size = file.size || 0;
+        const date = file.modifiedDate ? file.modifiedDate.toLocaleDateString() : new Date().toLocaleDateString();
+        return `${permissions} ${owner} ${group} ${size.toString().padStart(8)} ${date} ${file.name}`;
       }
       return file.name;
     })

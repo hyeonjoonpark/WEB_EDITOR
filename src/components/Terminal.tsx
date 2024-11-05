@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react';
-import { BrewPackage, CommandHistory, FileSystem } from '@/types';
+import { BrewPackage, CommandHistory, FileSystem } from '@/types/index';
 import { initialBrewPackages, initialFileSystem } from '@/data/initialState';
 import { handleTabCompletion } from '@/utils/tabCompletion';
 import { 
@@ -30,8 +30,12 @@ export default function Terminal({ onAddOutput, history: initialHistory }: Termi
   const [fileSystem, setFileSystem] = useState<FileSystem>({
     type: 'directory',
     name: 'root',
-    children: initialFileSystem
-  } as FileSystem);
+    children: {
+      Applications: { type: 'directory', name: 'Applications', children: {} as Record<string, FileSystem> },
+      Desktop: { type: 'directory', name: 'Desktop', children: {} as Record<string, FileSystem> },
+      Documents: { type: 'directory', name: 'Documents', children: {} as Record<string, FileSystem> }
+    }
+  });
   const [currentDirectory, setCurrentDirectory] = useState<string[]>([]);
   const [commandHistory, setCommandHistory] = useState<CommandHistory[]>([]);
   const [history, setHistory] = useState<string[]>(initialHistory);
@@ -92,13 +96,13 @@ export default function Terminal({ onAddOutput, history: initialHistory }: Termi
         if (args[1]) {
           setFileSystem(prev => ({
             ...prev,
-            children: {
+            children: prev.children && {
               ...prev.children,
               [args[1]]: {
                 type: 'directory' as const,
                 name: args[1],
                 children: {}
-              }
+              } as FileSystem
             }
           } as FileSystem));
           output = `디렉토리 생성됨: ${args[1]}`;
@@ -237,7 +241,7 @@ export default function Terminal({ onAddOutput, history: initialHistory }: Termi
                   ? { ...pkg, status: 'installed' }
                   : pkg
               ));
-              output = `${args[2]} 패키지를 설치하는 중...\n설치가 완료되었습니다.\n사용 가능한 명령어: ${packageToInstall.commands?.join(', ')}`;
+              output = `${args[2]} 패키를 설치는 중...\n설치가 완료되었습니다.\n사용 가능한 명령어: ${packageToInstall.commands?.join(', ')}`;
             }
           } else {
             output = `패키지 찾을 수 없습니다: ${args[2]}`;
@@ -268,6 +272,143 @@ export default function Terminal({ onAddOutput, history: initialHistory }: Termi
 - brew: 패키지 관리 (brew help로 자세한 정보 확인)
 - help: 도움말`;
         break;
+
+      // 시스템 정
+      case 'uname':
+        if (args.includes('-a')) {
+          output = 'Darwin MacBook-Pro 21.0.0 Darwin Kernel Version 21.0.0: x86_64';
+        } else {
+          output = 'Darwin';
+        }
+        break;
+
+      case 'uptime':
+        output = ` ${new Date().toLocaleTimeString()} up 2 days, 3:24, 2 users, load averages: 1.20 1.15 1.10`;
+        break;
+
+      case 'sw_vers':
+        output = `ProductName:    macOS\nProductVersion: 13.0\nBuildVersion:  22A380`;
+        break;
+
+      // 디스크 관리
+      case 'diskutil':
+        if (args[1] === 'list') {
+          output = `/dev/disk0 (internal):\n   #:                       TYPE NAME                    SIZE\n   0:      GUID_partition_scheme                        500.3 GB\n   1:             Apple_APFS Container disk1         500.3 GB`;
+        }
+        break;
+
+      // 네트워크
+      case 'ifconfig':
+        output = `en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500\n\tether 88:66:5a:00:00:00\n\tinet 192.168.1.100 netmask 0xffffff00 broadcast 192.168.1.255`;
+        break;
+
+      case 'netstat':
+        output = `Active Internet connections\nProto Recv-Q Send-Q Local Address           Foreign Address         State`;
+        break;
+
+      case 'ssh':
+        if (args[1]) {
+          output = `SSH 연결 시도 중: ${args[1]}...`;
+        }
+        break;
+
+      // 프로세스 관리
+      case 'lsof':
+        output = `COMMAND     PID     USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nTerminal  12345 username    4u   IPv4  0x1234      0t0  TCP localhost:8080`;
+        break;
+
+      // 파일 시스템
+      case 'ln':
+        if (args.length >= 3) {
+          output = `심볼릭 링크 생성: ${args[1]} -> ${args[2]}`;
+        }
+        break;
+
+      case 'chown':
+        if (args.length >= 3) {
+          output = `소유자 변: ${args[2]} -> ${args[1]}`;
+        }
+        break;
+
+      case 'ditto':
+        if (args.length >= 3) {
+          output = `복사 중: ${args[1]} -> ${args[2]}`;
+        }
+        break;
+
+      // 패키지 관리
+      case 'port':
+        output = 'MacPorts 명령어 시뮬레이션...';
+        break;
+
+      // 개발 도구
+      case 'xcode-select':
+        if (args.includes('--install')) {
+          output = 'Xcode Command Line Tools 설치 중...';
+        }
+        break;
+
+      case 'gcc':
+      case 'clang':
+        output = `컴파일 중: ${args.slice(1).join(' ')}`;
+        break;
+
+      // 시스템 관리
+      case 'launchctl':
+        output = 'Launch Daemon 관리 명령어 실행...';
+        break;
+
+      case 'caffeinate':
+        output = '시스템 절전 모드 방지 중...';
+        break;
+
+      case 'pmset':
+        if (args[1] === 'sleepnow') {
+          output = '시스템 절전 모드로 전환 중...';
+        }
+        break;
+
+      case 'say':
+        if (args.length > 1) {
+          output = `음성 출력: ${args.slice(1).join(' ')}`;
+        }
+        break;
+
+      case 'pbcopy':
+      case 'pbpaste':
+        output = '클립보드 작업 실행 중...';
+        break;
+
+      case 'open':
+        if (args[1]) {
+          output = `${args[1]} 파일/앱 여는 중...`;
+        }
+        break;
+
+      case 'defaults':
+        output = 'macOS 시스템 설정 변경 중...';
+        break;
+
+      case 'softwareupdate':
+        if (args.includes('--list')) {
+          output = '사용 가능한 소프트웨어 업데이트 확인 중...';
+        }
+        break;
+
+      case 'system_profiler':
+        output = 'SPHardwareDataType:\n\nHardware:\n\n    Hardware Overview:\n\n      Model Name: MacBook Pro\n      Processor Name: Intel Core i7\n      Memory: 16 GB';
+        break;
+
+      case 'screencapture':
+        output = '화면 캡처 중...';
+        break;
+
+      case 'airport':
+        if (args[1] === '-s') {
+          output = 'Wi-Fi 네트워크 스캔 중...';
+        }
+        break;
+
       default:
         const isPackageCommand = brewPackages
           .find(pkg => pkg.status === 'installed' && pkg.commands?.includes(args[0]));
@@ -325,10 +466,10 @@ export default function Terminal({ onAddOutput, history: initialHistory }: Termi
   }, [history]);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       <div 
         ref={containerRef}
-        className="flex-1 bg-black text-blue-500 font-mono p-4 overflow-y-auto"
+        className="flex-1 bg-black text-green-500 font-mono p-4 overflow-y-auto"
       >
         <div className="mb-4">
           웹 IDE에 오신 것을 환영합니다. 'help'를 입력하여 사용 가능한 명령어를 확인하세요.
@@ -339,19 +480,19 @@ export default function Terminal({ onAddOutput, history: initialHistory }: Termi
             {line}
           </div>
         ))}
-      </div>
 
-      <div className="flex bg-black text-blue-500 font-mono p-4 border-t border-[#333333]">
-        <span className="mr-2 whitespace-nowrap">{path} $</span>
-        <input
-          ref={inputRef}
-          type="text"
-          value={currentCommand}
-          onChange={(e) => setCurrentCommand(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="flex-1 bg-transparent outline-none text-blue-500 min-w-0"
-          autoFocus
-        />
+        <div className="flex mt-2">
+          <span className="mr-2 whitespace-nowrap">{path} $</span>
+          <input
+            ref={inputRef}
+            type="text"
+            value={currentCommand}
+            onChange={(e) => setCurrentCommand(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="flex-1 bg-transparent outline-none text-green-500 min-w-0"
+            autoFocus
+          />
+        </div>
       </div>
     </div>
   );

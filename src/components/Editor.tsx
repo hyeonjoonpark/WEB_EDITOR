@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { FileType } from '@/types';
+import { FileType } from '@/types/index';
 
 interface EditorProps {
   currentFile: FileType | null;
