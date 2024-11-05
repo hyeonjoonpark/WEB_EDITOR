@@ -6,10 +6,11 @@ import { FileType } from '@/types';
 
 interface EditorProps {
   currentFile: FileType | null;
-  onFileChange?: (file: FileType) => void;
+  onFileChange: (updatedFile: FileType) => void;
+  onRun: (code: string) => void;
 }
 
-export default function CodeEditor({ currentFile, onFileChange }: EditorProps) {
+export default function CodeEditor({ currentFile, onFileChange, onRun }: EditorProps) {
   const getLanguage = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase();
     switch (ext) {

@@ -16,8 +16,12 @@ import {
 } from '@/utils/fileSystemUtils';
 import { findFiles, searchInFiles } from '@/utils/searchUtils';
 
-export default function Terminal() {
-  const [history, setHistory] = useState<string[]>([]);
+interface TerminalProps {
+  onAddOutput: (output: string) => void;
+  history: string[];
+}
+
+export default function Terminal({ onAddOutput, history: initialHistory }: TerminalProps) {
   const [currentCommand, setCurrentCommand] = useState('');
   const [path, setPath] = useState('~');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -30,6 +34,7 @@ export default function Terminal() {
   } as FileSystem);
   const [currentDirectory, setCurrentDirectory] = useState<string[]>([]);
   const [commandHistory, setCommandHistory] = useState<CommandHistory[]>([]);
+  const [history, setHistory] = useState<string[]>(initialHistory);
 
   const executeCommand = (command: string) => {
     const args = command.trim().split(' ');
@@ -248,7 +253,7 @@ export default function Terminal() {
           output = `용 가능한 brew 명령어:
 - brew list: 설치된 패키지 목록
 - brew search <패키지명>: 패키지 검색
-- brew install <패키지명>: 패키�� 설치
+- brew install <패키지명>: 패키 설치
 - brew uninstall <패키지명>: 패키지 제거
 - brew help: brew 도움말`;
         } else {
@@ -271,16 +276,16 @@ export default function Terminal() {
           switch(args[0]) {
             case 'node':
               if (args.length === 1) {
-                output = 'Node.js REPL을 시작합니다. (.exit으로 종료)\n> ';
+                onAddOutput('Node.js REPL을 시작합니다. (.exit으로 종료)\n> ');
               } else {
-                output = `Node.js로 ${args.slice(1).join(' ')} 실행 중...`;
+                onAddOutput(`Node.js로 ${args.slice(1).join(' ')} 실행 중...`);
               }
               break;
             case 'python':
               if (args.length === 1) {
-                output = 'Python 인터프리터를 시작합니다. (exit()로 종료)\n>>> ';
+                onAddOutput('Python 인터프리터를 시작합니다. (exit()로 종료)\n>>> ');
               } else {
-                output = `Python으로 ${args.slice(1).join(' ')} 실행 중...`;
+                onAddOutput(`Python으로 ${args.slice(1).join(' ')} 실행 중...`);
               }
               break;
             case 'npm':
@@ -291,11 +296,14 @@ export default function Terminal() {
               break;
           }
         } else if (cmd) {
-          output = `Command not found: ${cmd}. 패키지가 설치되어 있는지 확인하세요.`;
+          onAddOutput(`Command not found: ${cmd}. 패키지가 설치되어 있는지 확인하세요.`);
         }
     }
 
-    setHistory(prev => [...prev, `${path} $ ${command}`, output]);
+    onAddOutput(`${path} $ ${command}`);
+    if (output) {
+      onAddOutput(output);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -317,31 +325,33 @@ export default function Terminal() {
   }, [history]);
 
   return (
-    <div className="min-h-screen bg-black p-4">
+    <div className="h-full flex flex-col">
       <div 
         ref={containerRef}
-        className="bg-black text-green-500 font-mono p-4 rounded-lg h-[80vh] overflow-y-auto"
+        className="flex-1 bg-black text-green-500 font-mono p-4 overflow-y-auto"
       >
         <div className="mb-4">
           웹 IDE에 오신 것을 환영합니다. 'help'를 입력하여 사용 가능한 명령어를 확인하세요.
         </div>
         
         {history.map((line, i) => (
-          <div key={i} className="whitespace-pre-wrap">{line}</div>
+          <div key={i} className="whitespace-pre-wrap">
+            {line}
+          </div>
         ))}
+      </div>
 
-        <div className="flex">
-          <span className="mr-2">{path} $</span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={currentCommand}
-            onChange={(e) => setCurrentCommand(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent outline-none text-green-500"
-            autoFocus
-          />
-        </div>
+      <div className="flex bg-black text-green-500 font-mono p-4 border-t border-[#333333]">
+        <span className="mr-2 whitespace-nowrap">{path} $</span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={currentCommand}
+          onChange={(e) => setCurrentCommand(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="flex-1 bg-transparent outline-none text-green-500 min-w-0"
+          autoFocus
+        />
       </div>
     </div>
   );

@@ -5,51 +5,54 @@ import Terminal from './Terminal';
 import Editor from './Editor';
 import Sidebar from './Sidebar';
 import { FileType } from '@/types'
+import DebugConsole from './DebugConsole';
+import * as ts from 'typescript';
 
 export default function IDE() {
   const [isTerminalOpen, setIsTerminalOpen] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(48);
-  const [terminalHeight, setTerminalHeight] = useState(250);
-  const [isDragging, setIsDragging] = useState(false);
+  const [sidebarWidth] = useState(255);
+  const [terminalHeight, setTerminalHeight] = useState(300);
   const [isTerminalDragging, setIsTerminalDragging] = useState(false);
   
   // 파일 시스템 상태 추가
-  const [files, setFiles] = useState<FileType[]>([
-    {
-      name: 'src',
-      type: 'directory',
-      content: '',
-      path: '/src',
-      children: [
-        {
-          name: 'components',
-          type: 'directory',
-          content: '',
-          path: '/src/components',
-          children: [
-            {
-              name: 'App.tsx',
-              type: 'file',
-              content: 'export default function App() {\n  return <div>Hello World</div>;\n}',
-              path: '/src/components/App.tsx'
-            },
-            {
-              name: 'Header.tsx',
-              type: 'file',
-              content: 'export default function Header() {\n  return <header>Header</header>;\n}',
-              path: '/src/components/Header.tsx'
-            }
-          ]
-        }
-      ]
-    }
-  ]);
+  const [files, setFiles] = useState<FileType[]>([]);
 
   // 현재 열린 파일 상태 추가
   const [currentFile, setCurrentFile] = useState<FileType | null>(null);
 
   // 열린 파일들의 목록을 관리하는 상태 추가
   const [openFiles, setOpenFiles] = useState<FileType[]>([]);
+
+  const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'terminal' | 'debug'>('terminal');
+
+  const [history, setHistory] = useState<string[]>([]);
+  const [debugOutput, setDebugOutput] = useState<string[]>([]);
+
+  // API 호출로 코드 실행
+  const executeCode = async (code: string) => {
+    const response = await fetch('/api/execute', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code }),
+    });
+    const result = await response.json();
+    setDebugOutput(prev => [...prev, result.output || result.error]);
+    setActiveTab('debug');
+  };
+
+  const handleRunCode = useCallback(() => {
+    if (!currentFile?.content) return;
+
+    const outputs = compileAndExecute(currentFile.content);
+    setDebugOutput(outputs);
+    outputs.forEach(output => {
+      setHistory(prev => [...prev, output]);
+    });
+    setActiveTab('debug');
+  }, [currentFile]);
 
   // 파일 선택 핸들러 수정
   const handleFileSelect = (file: FileType) => {
@@ -83,37 +86,43 @@ export default function IDE() {
     });
   };
 
-  // 사이드바 드래그 핸들러
-  const handleSidebarMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const handleTerminalResize = useCallback((e: MouseEvent) => {
+    const newHeight = window.innerHeight - e.clientY;
+    setTerminalHeight(Math.max(100, Math.min(newHeight, window.innerHeight - 200)));
   }, []);
 
-  // 터미널 드래그 핸들러
   const handleTerminalMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsTerminalDragging(true);
-  }, []);
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      handleTerminalResize(e);
+    };
+    
+    const handleMouseUp = () => {
+      setIsTerminalDragging(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [handleTerminalResize]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      const newWidth = e.clientX;
-      setSidebarWidth(Math.max(48, Math.min(newWidth, 600))); // 최소 48px, 최대 600px
-    }
     if (isTerminalDragging) {
       const windowHeight = window.innerHeight;
       const newHeight = windowHeight - e.clientY;
-      setTerminalHeight(Math.max(100, Math.min(newHeight, windowHeight - 200))); // 최소 100px, 최대 화면높이-200px
+      setTerminalHeight(Math.max(100, Math.min(newHeight, windowHeight - 200)));
     }
-  }, [isDragging, isTerminalDragging]);
+  }, [isTerminalDragging]);
 
   const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
     setIsTerminalDragging(false);
   }, []);
 
   useEffect(() => {
-    if (isDragging || isTerminalDragging) {
+    if (isTerminalDragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
@@ -122,7 +131,7 @@ export default function IDE() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isTerminalDragging, handleMouseMove, handleMouseUp]);
+  }, [isTerminalDragging, handleMouseMove, handleMouseUp]);
 
   const handleFileChange = (updatedFile: FileType) => {
     setFiles(prevFiles => {
@@ -173,7 +182,7 @@ export default function IDE() {
               children: []
             };
 
-            // 디렉토리를 적절한 위치에 추가
+            // 디토리를 적절한 위치에 추가
             let target = newFiles;
             const parentPath = currentPath.split('/').slice(0, -1).join('/');
             if (parentPath) {
@@ -228,73 +237,181 @@ export default function IDE() {
     return paths;
   };
 
+  // 새 폴더 생성 핸들러
+  const handleCreateFolder = () => {
+    const folderName = prompt('생성할 폴더 이름을 입력하세요:');
+    if (!folderName) return;
+
+    setFiles(prevFiles => {
+      const newFolder: FileType = {
+        name: folderName,
+        type: 'directory',
+        path: `/${folderName}`,
+        content: '',
+        children: []
+      };
+
+      return [...prevFiles, newFolder];
+    });
+  };
+
+  // 새 파일 생성 핸들러
+  const handleCreateFile = () => {
+    const fileName = prompt('생성할 파일 이름을 입력하세요:');
+    if (!fileName) return;
+
+    const newFile: FileType = {
+      name: fileName,
+      type: 'file',
+      path: `/${fileName}`,
+      content: '',
+      children: []
+    };
+
+    setFiles(prevFiles => [...prevFiles, newFile]);
+    setOpenFiles(prevFiles => [...prevFiles, newFile]);
+    setCurrentFile(newFile);
+  };
+
+  // compileAndExecute 함수 추가
+  const compileAndExecute = (code: string): string[] => {
+    try {
+      const result = ts.transpileModule(code, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS }
+      });
+      
+      // 트랜스파일된 코드를 콘솔에 출력
+      return [`Transpiled code:\n${result.outputText}`];
+    } catch (error) {
+      return [`Error: ${error instanceof Error ? error.message : String(error)}`];
+    }
+  };
+
   return (
-    <div className="h-screen flex flex-col bg-[#1e1e1e]">
-      <div className="h-9 bg-[#3c3c3c] flex items-center px-4 text-white/80 text-sm">
-        <div className="flex space-x-4">
-          <span>File</span>
-          <span>Edit</span>
-          <span>View</span>
-          <span>Go</span>
-          <span>Run</span>
-          <span>Terminal</span>
-          <span>Help</span>
-        </div>
+    <div className="h-screen flex flex-col bg-[#1e1e1e] text-white">
+      {/* 상단 메뉴바 */}
+      <div className="h-8 bg-[#323233] flex items-center px-2 text-[#CCCCCC] space-x-2">
+        <button 
+          onClick={handleRunCode}
+          className="flex items-center px-2 py-1 hover:bg-[#3c3c3c] rounded"
+        >
+          <svg className="w-4 h-4 mr-1" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M4 2v12l8-6z"/>
+          </svg>
+          Run
+        </button>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div 
-          className="flex-shrink-0 border-r border-[#333333] relative" 
-          style={{ width: `${sidebarWidth}px` }}
-        >
-          <Sidebar 
-            files={files} 
-            onFileSelect={handleFileSelect} 
-            currentFile={currentFile || undefined}
-            onFilesUpload={handleFilesUpload}
-            openFiles={openFiles}
-            onFileClose={handleFileClose}
-          />
-          <div
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-[#007acc]"
-            onMouseDown={handleSidebarMouseDown}
-          />
-        </div>
-        
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 overflow-hidden">
-            <Editor 
-              currentFile={currentFile} 
-              onFileChange={handleFileChange}
-            />
+      {/* 메인 영역 전체를 flex column으로 구성 */}
+      <div className="flex flex-col h-full">
+        <div className="flex flex-1 min-h-0">
+          {/* Activity Bar + Sidebar */}
+          <div className="flex h-full">
+            {/* Activity Bar */}
+            <div className="w-12 flex-shrink-0 bg-[#333333] flex flex-col items-center py-2">
+              <button className="w-12 h-12 flex items-center justify-center hover:bg-[#424242] relative group">
+                <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                <div className="absolute left-0 w-[2px] h-12 bg-white" />
+              </button>
+              <button className="w-12 h-12 flex items-center justify-center hover:bg-[#424242]">
+                <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z" />
+                </svg>
+              </button>
+              <button className="w-12 h-12 flex items-center justify-center hover:bg-[#424242]">
+                <svg className="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32L19.513 8.2z" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Sidebar + 드래그 핸들러 */}
+            <div className="flex h-full" style={{ width: `${sidebarWidth}px` }}>
+              <div className="flex-1 h-full bg-[#252526] overflow-auto">
+                <Sidebar 
+                  files={files} 
+                  onFileSelect={handleFileSelect} 
+                  currentFile={currentFile || undefined}
+                  onFilesUpload={handleFilesUpload}
+                  openFiles={openFiles}
+                  onFileClose={handleFileClose}
+                  onCreateFolder={handleCreateFolder}
+                  onCreateFile={handleCreateFile}
+                />
+              </div>
+            </div>
           </div>
-          
-          {isTerminalOpen && (
+
+          {/* 에디터와 터미널/디버그 영역을 포함하는 컨테이너 */}
+          <div className="flex-1 flex flex-col">
+            {/* 에디터 영역 */}
+            <div className="flex-1 overflow-hidden bg-[#1e1e1e]">
+              <Editor 
+                currentFile={currentFile} 
+                onFileChange={handleFileChange}
+                onRun={(code) => {
+                  executeCode(code);
+                  setActiveTab('debug');
+                }}
+              />
+            </div>
+
+            {/* 터미널/디버그 영역 */}
             <div 
-              className="border-t border-[#333333] relative"
+              className="relative bg-[#1e1e1e]" 
               style={{ height: `${terminalHeight}px` }}
             >
+              {/* 드래그 핸들 */}
               <div
-                className="absolute top-0 left-0 right-0 h-1 cursor-row-resize hover:bg-[#007acc]"
+                className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-[#007acc]"
                 onMouseDown={handleTerminalMouseDown}
               />
-              <div className="h-9 bg-[#252526] flex items-center px-4 text-white/80 text-sm border-b border-[#333333]">
-                <div className="flex items-center space-x-2">
-                  <span>Terminal</span>
-                  <button 
-                    onClick={() => setIsTerminalOpen(false)}
-                    className="ml-4 hover:bg-[#333333] px-2 py-1 rounded"
+
+              <div className="h-full flex flex-col">
+                {/* 탭 버튼을 가로로 배치 */}
+                <div className="flex border-b border-[#333333] bg-[#252526]">
+                  <button
+                    className={`px-4 py-1 text-sm ${
+                      activeTab === 'terminal' 
+                        ? 'bg-[#1e1e1e] text-white border-t-2 border-[#007acc]' 
+                        : 'text-[#969696] hover:bg-[#2d2d2d]'
+                    }`}
+                    onClick={() => setActiveTab('terminal')}
                   >
-                    ✕
+                    Terminal
+                  </button>
+                  <button
+                    className={`px-4 py-1 text-sm ${
+                      activeTab === 'debug' 
+                        ? 'bg-[#1e1e1e] text-white border-t-2 border-[#007acc]' 
+                        : 'text-[#969696] hover:bg-[#2d2d2d]'
+                    }`}
+                    onClick={() => setActiveTab('debug')}
+                  >
+                    Debug
                   </button>
                 </div>
+
+                {/* 콘텐츠 영역 */}
+                <div className="flex-1">
+                  {activeTab === 'terminal' ? (
+                    <Terminal 
+                      onAddOutput={(output) => setHistory(prev => [...prev, output])}
+                      history={history}
+                    />
+                  ) : (
+                    <DebugConsole output={debugOutput} />
+                  )}
+                </div>
               </div>
-              <Terminal />
             </div>
-          )}
+          </div>
         </div>
       </div>
 
+      {/* 하단 상태바 */}
       <div className="h-6 bg-[#007acc] text-white/80 text-xs flex items-center px-4">
         <div className="flex space-x-4">
           <span>Ready</span>

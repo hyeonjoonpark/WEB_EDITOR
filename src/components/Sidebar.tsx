@@ -2,6 +2,7 @@
 
 import React, { useRef, HTMLAttributes, useState } from 'react';
 import { FileType } from '@/types';
+import { FolderPlusIcon, DocumentPlusIcon } from '@heroicons/react/24/outline';
 
 declare module 'react' {
   interface InputHTMLAttributes<T> extends HTMLAttributes<T> {
@@ -23,9 +24,11 @@ interface SidebarProps {
   onFilesUpload: (files: FileType[]) => void;
   openFiles: FileType[];
   onFileClose: (file: FileType) => void;
+  onCreateFolder: () => void;
+  onCreateFile: () => void;
 }
 
-export default function Sidebar({ files, onFileSelect, currentFile, onFilesUpload, openFiles, onFileClose }: SidebarProps) {
+export default function Sidebar({ files, onFileSelect, currentFile, onFilesUpload, openFiles, onFileClose, onCreateFolder, onCreateFile }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileOpen = () => {
@@ -184,8 +187,8 @@ export default function Sidebar({ files, onFileSelect, currentFile, onFilesUploa
   };
 
   return (
-    <div className="h-full flex">
-      {/* 숨겨진 파일 입력 추가 */}
+    <div className="flex flex-col w-64 bg-[#252526] text-white h-screen border-r border-gray-700 relative z-0">
+      {/* 파일 입력 필드는 숨김 처리 */}
       <input
         type="file"
         ref={fileInputRef}
@@ -196,70 +199,38 @@ export default function Sidebar({ files, onFileSelect, currentFile, onFilesUploa
         multiple
       />
       
-      {/* 아이콘 사이드바 */}
-      <div className="w-12 bg-[#333333] flex-shrink-0">
-        <div className="flex flex-col">
-          <SidebarIcon 
-            icon="📁" 
-            active 
+      <div className="p-2 flex justify-between items-center border-b border-gray-700 sticky top-0 bg-[#252526] z-[1]">
+        <span className="text-sm flex items-center gap-1">
+          <span>EXPLORER</span>
+          <button 
+            className="p-1 hover:bg-gray-700 rounded"
             onClick={handleFileOpen}
-          />
-          <SidebarIcon icon="🔍" />
-          <SidebarIcon icon="⚙️" />
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+          </button>
+        </span>
+        <div className="flex gap-2">
+          <button 
+            className="p-1 hover:bg-gray-700 rounded"
+            onClick={onCreateFolder}
+          >
+            <FolderPlusIcon className="w-4 h-4" />
+          </button>
+          <button 
+            className="p-1 hover:bg-gray-700 rounded"
+            onClick={onCreateFile}
+          >
+            <DocumentPlusIcon className="w-4 h-4" />
+          </button>
         </div>
       </div>
-
-      {/* 파일 트리 */}
-      <div className="flex-1 bg-[#252526] border-r border-[#333333] overflow-hidden">
-        <div className="h-9 px-4 flex items-center text-white/80 text-xs font-medium border-b border-[#333333]">
-          EXPLORER
-        </div>
-        <div className="overflow-auto">
-          {files.map((file) => (
-            <FileTreeItem key={file.path} file={file} />
-          ))}
-        </div>
-      </div>
-
-      {/* 열린 파일 목록 */}
-      <div className="w-60 bg-[#252526] border-r border-[#333333] overflow-hidden">
-        <div className="h-9 px-4 flex items-center text-white/80 text-xs font-medium border-b border-[#333333]">
-          OPEN EDITORS
-        </div>
-        <div className="overflow-auto">
-          {openFiles.length === 0 ? (
-            <div className="px-4 py-2 text-sm text-white/50">
-              열린 파일이 없습니다
-            </div>
-          ) : (
-            openFiles.map((file) => (
-              <div 
-                key={file.path}
-                className={`
-                  flex items-center px-4 py-1 hover:bg-[#2a2d2e] cursor-pointer group
-                  ${currentFile?.path === file.path ? 'bg-[#37373d]' : ''}
-                `}
-              >
-                <div 
-                  className="flex-1 flex items-center"
-                  onClick={() => onFileSelect(file)}
-                >
-                  <span className="mr-2 flex-shrink-0">📄</span>
-                  <span className="text-sm text-white/80 truncate">{file.name}</span>
-                </div>
-                <button 
-                  className="ml-2 text-white/60 hover:text-white opacity-0 group-hover:opacity-100"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onFileClose(file);
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+      
+      <div className="overflow-auto flex-1">
+        {files.map((file) => (
+          <FileTreeItem key={file.path} file={file} />
+        ))}
       </div>
     </div>
   );
