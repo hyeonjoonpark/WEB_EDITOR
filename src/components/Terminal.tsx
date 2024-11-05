@@ -328,7 +328,7 @@ export default function Terminal({ onAddOutput, history: initialHistory }: Termi
     <div className="h-full flex flex-col">
       <div 
         ref={containerRef}
-        className="flex-1 bg-black text-green-500 font-mono p-4 overflow-y-auto"
+        className="flex-1 bg-black text-blue-500 font-mono p-4 overflow-y-auto"
       >
         <div className="mb-4">
           웹 IDE에 오신 것을 환영합니다. 'help'를 입력하여 사용 가능한 명령어를 확인하세요.
@@ -341,7 +341,7 @@ export default function Terminal({ onAddOutput, history: initialHistory }: Termi
         ))}
       </div>
 
-      <div className="flex bg-black text-green-500 font-mono p-4 border-t border-[#333333]">
+      <div className="flex bg-black text-blue-500 font-mono p-4 border-t border-[#333333]">
         <span className="mr-2 whitespace-nowrap">{path} $</span>
         <input
           ref={inputRef}
@@ -349,7 +349,7 @@ export default function Terminal({ onAddOutput, history: initialHistory }: Termi
           value={currentCommand}
           onChange={(e) => setCurrentCommand(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="flex-1 bg-transparent outline-none text-green-500 min-w-0"
+          className="flex-1 bg-transparent outline-none text-blue-500 min-w-0"
           autoFocus
         />
       </div>
